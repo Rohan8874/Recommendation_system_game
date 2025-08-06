@@ -1,4 +1,4 @@
--- Active: 1753091497982@@127.0.0.1@5432@postgres@public
+-- Active: 1753091497982@@127.0.0.1@5432
 -- Run this in pgAdmin or psql
 
 CREATE TABLE users (
@@ -36,13 +36,47 @@ CREATE TABLE games (
     reviews_url TEXT
 );
 
-SELECT * FROM games 
-WHERE tfidf_vector @@ to_tsquery('english', 'strategy & indie');
-
 SELECT COUNT(*) FROM games;
 SELECT COUNT(*) FROM users;
 SELECT COUNT(*) FROM user_items;
 
-
 SELECT COUNT(*) AS total_terms
 FROM games;
+
+CREATE TABLE IF NOT EXISTS user_play_ratio (
+    user_id TEXT PRIMARY KEY,
+    playtime_vector FLOAT8[]
+);
+
+CREATE EXTENSION IF NOT EXISTS playtime_vector;
+
+CREATE EXTENSION vector;
+
+ALTER TABLE user_play_ratio
+ALTER COLUMN playtime_vector TYPE vector(100);
+
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'user_play_ratio' AND column_name = 'playtime_vector';
+
+ALTER TABLE user_play_ratio
+DROP COLUMN playtime_vector;
+
+-- Then re-add it with the correct type
+ALTER TABLE user_play_ratio
+ADD COLUMN playtime_vector vector();  
+
+ALTER TABLE user_play_ratio ADD COLUMN playtime_vector vector;
+
+
+SELECT 
+    user_id, 
+    playtime_vector <=> (SELECT playtime_vector FROM user_play_ratio WHERE user_id = 'doctr') AS similarity
+FROM user_play_ratio
+WHERE user_id != 'doctr'
+ORDER BY similarity ASC  
+LIMIT 20;
+
+
+SELECT * FROM items WHERE id != 1 ORDER BY embedding <-> (SELECT embedding FROM items WHERE id = 1) LIMIT 5;
+
