@@ -1,5 +1,7 @@
 import psycopg2
 from scipy.stats import spearmanr
+from numpy import array, dot
+from numpy.linalg import norm
 
 # -------------------- PostgreSQL Connection --------------------
 conn = psycopg2.connect(
@@ -71,21 +73,21 @@ for games in user_games_dict.values():
         part1_game_names.add(item_name)
 
 part2_game_names = set(item_name for item_name, _, _, _ in top_games)
-
 all_game_names = list(part1_game_names.union(part2_game_names))
 
 # -------------------- Step 6: Get TF-IDF Vectors --------------------
 game_vectors = {}
 for game_name in all_game_names:
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         SELECT tfidf_vector
         FROM games
         WHERE app_name = %s
         LIMIT 1;
     """, (game_name,))
-    result = cursor.fetchone()
-    cursor.close()
+    result = cur.fetchone()
+    cur.close()
+
     if result:
         tfidf = result[0]
         if isinstance(tfidf, list):
@@ -93,34 +95,22 @@ for game_name in all_game_names:
         else:
             print(f" Unexpected format for tfidf_vector in game: {game_name}")
 
+# -------------------- Step 7: Average TF-IDF Vectors --------------------
+part1_vectors = [game_vectors[game] for game in part1_game_names if game in game_vectors]
+part2_vectors = [game_vectors[game] for game in part2_game_names if game in game_vectors]
 
-# -------------------- Step 7: Create Rankings --------------------
-part1_rank = {}
-rank = 1
-for games in user_games_dict.values():
-    for item_name, _ in games:
-        if item_name in game_vectors and item_name not in part1_rank:
-            part1_rank[item_name] = rank
-            rank += 1
-
-part2_rank = {}
-rank = 1
-for item_name, _, _, _ in top_games:
-    if item_name in game_vectors and item_name not in part2_rank:
-        part2_rank[item_name] = rank
-        rank += 1
-
-# -------------------- Step 8: Compute Spearman Rank Correlation --------------------
-common_games = list(set(part1_rank.keys()).intersection(part2_rank.keys()))
-
-if len(common_games) < 2:
-    print("\n Not enough common games to compute Spearman correlation.")
+if not part1_vectors or not part2_vectors:
+    print("\nNot enough valid TF-IDF vectors for comparison.")
 else:
-    part1_ranks = [part1_rank[game] for game in common_games]
-    part2_ranks = [part2_rank[game] for game in common_games]
+    part1_avg_vector = array(part1_vectors).mean(axis=0)
+    part2_avg_vector = array(part2_vectors).mean(axis=0)
 
-    correlation, _ = spearmanr(part1_ranks, part2_ranks)
-    print(f"\n Spearman Rank Correlation between Part 1 and Part 2: {correlation:.4f}")
+    # -------------------- Step 8: Similarity Measures --------------------
+    spearman_corr, _ = spearmanr(part1_avg_vector, part2_avg_vector)
+    print(f"\nSpearman Rank Correlation (TF-IDF): {spearman_corr:.4f}")
+
+    cosine_sim = dot(part1_avg_vector, part2_avg_vector) / (norm(part1_avg_vector) * norm(part2_avg_vector))
+    print(f"Cosine Similarity (TF-IDF): {cosine_sim:.4f}")
 
 # -------------------- Cleanup --------------------
 cursor.close()

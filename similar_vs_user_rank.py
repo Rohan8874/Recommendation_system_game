@@ -98,3 +98,7 @@ for i, score in enumerate(spearman_scores, 1):
     print(f"Game {i}: {score:.4f}")
 
 print(f"\nAverage Spearman’s Correlation: {avg_spearman:.4f}")
+
+
+
+
