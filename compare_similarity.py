@@ -1,12 +1,3 @@
-# i have postgres dataset and this dataset have in user table user_id,steam_id,items_count,user_url. 
-# user_items table have user_id,item_id,playtime_forever,playtime_2weeks,item_name.
-# games table have id,app_name,tfidf_vector.
-# now i want to find a single users played games show base on playtime_forever and playtime_2weeks. 
-# find top 10 games based on playtime_forever and playtime_2weeks.
-# Now also i want to find compare same user games to all games similarty based on tfidf_vector 
-# filter out duplicate games and keep only the best one. now top 10 games will be recommended to user.
-# provide me python code to do this.
-
 import psycopg2
 import math
 
