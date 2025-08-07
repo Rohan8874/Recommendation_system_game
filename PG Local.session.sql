@@ -1,4 +1,4 @@
--- Active: 1753091497982@@127.0.0.1@5432
+-- Active: 1754475158187@@127.0.0.1@5432@postgres
 -- Run this in pgAdmin or psql
 
 CREATE TABLE users (
@@ -50,8 +50,6 @@ CREATE TABLE IF NOT EXISTS user_play_ratio (
 
 CREATE EXTENSION IF NOT EXISTS playtime_vector;
 
-CREATE EXTENSION vector;
-
 ALTER TABLE user_play_ratio
 ALTER COLUMN playtime_vector TYPE vector(100);
 
@@ -77,6 +75,33 @@ WHERE user_id != 'doctr'
 ORDER BY similarity ASC  
 LIMIT 20;
 
+       -- Tfidf_vector Convert Pgvector--
 
-SELECT * FROM items WHERE id != 1 ORDER BY embedding <-> (SELECT embedding FROM items WHERE id = 1) LIMIT 5;
+CREATE EXTENSION IF NOT EXISTS vector;
+ALTER TABLE games ADD COLUMN tfidf_vec_vector vector(5000);
 
+UPDATE games
+SET tfidf_vec_vector = tfidf_vector::vector
+WHERE tfidf_vector IS NOT NULL;
+
+ALTER TABLE games DROP COLUMN tfidf_vector;
+
+SELECT id, vector_dims(tfidf_vec_vector)
+FROM games
+LIMIT 5;
+
+SELECT id, app_name, tfidf_vec_vector <=> (
+  SELECT tfidf_vec_vector FROM games WHERE id = 'doctr'
+) AS similarity
+FROM games
+ORDER BY similarity ASC
+LIMIT 10;
+
+SELECT array_length(tfidf_vector, 1)
+FROM games
+WHERE tfidf_vector IS NOT NULL
+LIMIT 1;
+
+
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE INDEX ON games USING ivfflat (tfidf_vec_vector vector_cosine_ops);
